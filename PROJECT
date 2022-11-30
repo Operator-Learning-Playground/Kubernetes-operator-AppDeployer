@@ -1,0 +1,16 @@
+domain: jiang.operator
+layout:
+- go.kubebuilder.io/v3
+projectName: operator-develop
+repo: golanglearning/new_project/operator-develop
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: jiang.operator
+  group: deploy
+  kind: AppDeployer
+  path: golanglearning/new_project/operator-develop/api/v1
+  version: v1
+version: "3"

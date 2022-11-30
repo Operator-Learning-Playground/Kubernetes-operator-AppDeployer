@@ -1,0 +1,24 @@
+# permissions for end users to edit appdeployers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appdeployer-editor-role
+rules:
+- apiGroups:
+  - deploy.jiang.operator
+  resources:
+  - appdeployers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - deploy.jiang.operator
+  resources:
+  - appdeployers/status
+  verbs:
+  - get
