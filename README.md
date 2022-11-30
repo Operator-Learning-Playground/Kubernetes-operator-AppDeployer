@@ -1,8 +1,21 @@
 ## 自定义资源对象与控制器 AppDeployer 
 
 ### 项目思路与功能
-项目背景：一般在集群上部署应用都需要**deployment+service**的方式进行部署，在实际过程中会相对比较麻烦，本项目基于此背景下，创建CRD自定义对象，使调用方只要创建一个自定义对象，就能拉起整个**deployment+service**
-
+项目背景：一般在集群上部署应用都需要**deployment+service**的方式进行部署，在实际过程中会相对比较麻烦，本项目基于此背景下，创建CRD自定义对象，让调用方只要创建一个自定义对象，就能拉起整个**deployment+service**
+```bigquery
+apiVersion: deploy.jiang.operator/v1
+kind: AppDeployer
+metadata:
+  name: appdeployer-sample
+spec:
+  # TODO(user): Add fields here
+  size: 2 # pod副本
+  image: nginx:1.7.9 # 镜像
+  ports:  # service端口
+    - port: 80
+      targetPort: 80 # 容器端口
+      nodePort: 30002 #service type:NodePort端口
+```
 思路：
 
 ### 附注

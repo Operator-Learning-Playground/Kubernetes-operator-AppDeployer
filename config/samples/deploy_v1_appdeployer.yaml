@@ -2,13 +2,6 @@ apiVersion: deploy.jiang.operator/v1
 kind: AppDeployer
 metadata:
   name: appdeployer-sample
-  annotation:
-    old-spec: "size: 2 # pod副本
-                 image: nginx:1.7.9 # 镜像
-                 ports:  #端口
-                   - port: 80
-                     targetPort: 80 # 容器端口
-                     nodePort: 30002 #service端口"
 spec:
   # TODO(user): Add fields here
   size: 2 # pod副本
