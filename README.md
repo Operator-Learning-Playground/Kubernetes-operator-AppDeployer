@@ -17,6 +17,9 @@ spec:
       nodePort: 30002 #service type:NodePort端口
 ```
 思路：
+
+自定义CRD启动时，会启动自己的Controller，并同时关联和拉起Deployment、Service。
+
 ![](https://github.com/googs1025/Kubernetes-operator-AppDeployer/blob/main/images/%E6%B5%81%E7%A8%8B%E5%9B%BE.jpg?raw=true)
 
 ### 附注
