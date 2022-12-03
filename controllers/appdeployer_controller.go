@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"fmt"
 )
 
 // AppDeployerReconciler reconciles a AppDeployer object
@@ -83,7 +84,7 @@ func (r *AppDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// 使用 CreateOrUpdate
 
 	// 调谐，先获取当前状态，和期望状态进行比较
-	// CreateOrUpdate Deployment
+	// 1. CreateOrUpdate Deployment
 	var deployment appsv1.Deployment
 	deployment.Name = appDeploy.Name
 	deployment.Namespace = appDeploy.Namespace
@@ -101,22 +102,49 @@ func (r *AppDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logs.Info("CreateOrUpdate", "Deployment", mutateDeploymentRes)
 
+	// 2. CreateOrUpdate Service
 	var service corev1.Service
 	service.Name = appDeploy.Name
 	service.Namespace = appDeploy.Namespace
-	mutateServiceRes, err := ctrl.CreateOrUpdate(ctx, r.Client, &service, func() error {
-		// 调谐在这里实现
-		MutateService(&appDeploy, &service)
-		// 设置OwnerReference
-		err := controllerutil.SetOwnerReference(&appDeploy, &service, r.Scheme)
-		return err
-	})
+	// 如果启动Service
+	if appDeploy.Spec.Service {
 
-	if err != nil {
-		return ctrl.Result{}, err
+		if !checkService(&appDeploy) {
+			return ctrl.Result{}, errors.New("the ServiceType is ClusterIP, so NodePort shouldn't be set")
+		}
+
+		mutateServiceRes, err := ctrl.CreateOrUpdate(ctx, r.Client, &service, func() error {
+			// 调谐在这里实现
+			MutateService(&appDeploy, &service)
+			// 设置OwnerReference
+			err := controllerutil.SetOwnerReference(&appDeploy, &service, r.Scheme)
+			return err
+		})
+
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		logs.Info("CreateOrUpdate", "Service", mutateServiceRes)
+	} else {
+		// 关闭Service配置后，需要把原来的删除
+		err := r.Get(ctx, req.NamespacedName, &service)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				logs.Info("not found Service resource")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+		err = r.Delete(ctx, &service)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				logs.Info("not found Service resource")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
 	}
-
-	logs.Info("CreateOrUpdate", "Service", mutateServiceRes)
 
 	return ctrl.Result{}, nil
 }
@@ -127,12 +155,12 @@ func (r *AppDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&deployv1.AppDeployer{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
-		Watches(&source.Kind{	// 加入监听。
+		Watches(&source.Kind{ // 加入监听。
 			Type: &appsv1.Deployment{},
 		}, handler.Funcs{
 			DeleteFunc: r.deploymentDeleteHandler,
 		}).
-		Watches(&source.Kind{	// 加入监听。
+		Watches(&source.Kind{ // 加入监听。
 			Type: &corev1.Service{},
 		}, handler.Funcs{
 			DeleteFunc: r.serviceDeleteHandler,
@@ -141,10 +169,10 @@ func (r *AppDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *AppDeployerReconciler) deploymentDeleteHandler(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
-	fmt.Println("被删除的对象名称是", event.Object.GetName())
 	for _, ref := range event.Object.GetOwnerReferences() {
-		if ref.Kind == "AppDeployer" && ref.APIVersion == "deploy.jiang.operator/v1" {
+		if ref.Kind == deployv1.Kind && ref.APIVersion == deployv1.ApiVersion {
 			// 重新入列，这样删除pod后，就会进入调和loop，发现owerReference还在，会立即创建出新的pod。
+			fmt.Println("被删除的对象名称是", event.Object.GetName())
 			limitingInterface.Add(reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: ref.Name,
 					Namespace: event.Object.GetNamespace()}})
@@ -153,10 +181,10 @@ func (r *AppDeployerReconciler) deploymentDeleteHandler(event event.DeleteEvent,
 }
 
 func (r *AppDeployerReconciler) serviceDeleteHandler(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
-	fmt.Println("被删除的对象名称是", event.Object.GetName())
 	for _, ref := range event.Object.GetOwnerReferences() {
-		if ref.Kind == "AppDeployer" && ref.APIVersion == "deploy.jiang.operator/v1" {
+		if ref.Kind == deployv1.Kind && ref.APIVersion == deployv1.ApiVersion {
 			// 重新入列，这样删除pod后，就会进入调和loop，发现owerReference还在，会立即创建出新的pod。
+			fmt.Println("被删除的对象名称是", event.Object.GetName())
 			limitingInterface.Add(reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: ref.Name,
 					Namespace: event.Object.GetNamespace()}})

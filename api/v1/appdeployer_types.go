@@ -30,11 +30,18 @@ type AppDeployerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Size      int32                       `json:"size"`
-	Image     string                      `json:"image"`
+	Size int32 `json:"size"`
+	// Image     string                      `json:"image"`
 	Ports     []corev1.ServicePort        `json:"ports"`
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-	Envs      []corev1.EnvVar             `json:"envs,omitempty"`
+	//Envs      []corev1.EnvVar             `json:"envs,omitempty"`
+	Containers []corev1.Container `json:"containers"`
+	// 判断是否需要部署service资源
+	// +kubebuilder:default:=false
+	Service bool `json:"service"`
+	// +kubebuilder:validation:Enum=NodePort;ClusterIP
+	// +kubebuilder:default:=NodePort
+	ServiceType string `json:"service_type"`
 }
 
 // AppDeployerStatus defines the observed state of AppDeployer

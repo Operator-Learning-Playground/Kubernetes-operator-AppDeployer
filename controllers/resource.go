@@ -35,7 +35,7 @@ func MutateDeployment(appDeployer *deployv1.AppDeployer, deployment *appsv1.Depl
 
 func MutateService(appDeployer *deployv1.AppDeployer, service *corev1.Service) {
 	service.Spec = corev1.ServiceSpec{
-		Type:  corev1.ServiceTypeNodePort,
+		Type:  corev1.ServiceType(appDeployer.Spec.ServiceType),
 		Ports: appDeployer.Spec.Ports,
 		Selector: map[string]string{
 			"appDeployer": appDeployer.Name,
@@ -87,25 +87,29 @@ func NewDeployment(appDeployer *deployv1.AppDeployer) *appsv1.Deployment {
 }
 
 func newContainers(appDeploy *deployv1.AppDeployer) []corev1.Container {
-
-	containerPorts := []corev1.ContainerPort{}
-
-	for _, p := range appDeploy.Spec.Ports {
-		containerPorts = append(containerPorts, corev1.ContainerPort{
-			ContainerPort: p.TargetPort.IntVal,
-		})
-	}
-
-	return []corev1.Container{
-		{
-			Name:      appDeploy.Name,
-			Image:     appDeploy.Spec.Image,
-			Ports:     containerPorts,
-			Env:       appDeploy.Spec.Envs,
-			Resources: appDeploy.Spec.Resources,
-		},
-	}
+	return appDeploy.Spec.Containers
 }
+
+//func newContainers1(appDeploy *deployv1.AppDeployer) []corev1.Container {
+//
+//	containerPorts := []corev1.ContainerPort{}
+//
+//	for _, p := range appDeploy.Spec.Ports {
+//		containerPorts = append(containerPorts, corev1.ContainerPort{
+//			ContainerPort: p.TargetPort.IntVal,
+//		})
+//	}
+//
+//	return []corev1.Container{
+//		{
+//			Name:      appDeploy.Name,
+//			Image:     appDeploy.Spec.Image,
+//			Ports:     containerPorts,
+//			Env:       appDeploy.Spec.Envs,
+//			Resources: appDeploy.Spec.Resources,
+//		},
+//	}
+//}
 
 // NewService 创建service
 func NewService(appDeployer *deployv1.AppDeployer) *corev1.Service {

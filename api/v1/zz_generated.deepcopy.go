@@ -96,9 +96,9 @@ func (in *AppDeployerSpec) DeepCopyInto(out *AppDeployerSpec) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
-	if in.Envs != nil {
-		in, out := &in.Envs, &out.Envs
-		*out = make([]corev1.EnvVar, len(*in))
+	if in.Containers != nil {
+		in, out := &in.Containers, &out.Containers
+		*out = make([]corev1.Container, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
