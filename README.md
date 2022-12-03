@@ -2,6 +2,12 @@
 
 ### 项目思路与功能
 项目背景：一般在集群上部署应用都需要**deployment+service**的方式进行部署，在实际过程中会相对比较麻烦，本项目基于此背景下，创建CRD自定义对象，让调用方只要创建一个自定义对象，就能拉起整个**deployment+service**
+
+支持功能：
+1. 使用CRD资源对象创建Deployment、Service
+2. 支持多容器以sidecar方式部署(环境变量、command等都支持)
+3. 支持自定义是否使用Service功能
+4. 支持自定义支持Service种类(NodePort or ClusterIP)
 ```bigquery
 apiVersion: deploy.jiang.operator/v1
 kind: AppDeployer
