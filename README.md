@@ -10,11 +10,40 @@ metadata:
 spec:
   # TODO(user): Add fields here
   size: 2 # pod副本
-  image: nginx:1.7.9 # 镜像
-  ports:  # service端口
+  containers:
+    - name: c1
+      image: busybox:1.34
+      command:
+        - "sleep"
+        - "3600"
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    - name: c2
+      image: busybox:1.34
+      command:
+        - "sleep"
+        - "3600"
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    - name: c3
+      image: busybox:1.34
+      command:
+        - "sleep"
+        - "3600"
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+  service: true   # 自定义是否要配置Service
+  service_type: NodePort # 目前支持NodePort ClusterIP 转换，注意：如果使用ClusterIP nodePort端口字段必须删除，否则会报错。
+  ports:  #端口
     - port: 80
       targetPort: 80 # 容器端口
-      nodePort: 30002 #service type:NodePort端口
+      nodePort: 30002 #service端口  注意：如果使用ClusterIP nodePort端口字段必须删除，否则会报错。
 ```
 思路：
 
