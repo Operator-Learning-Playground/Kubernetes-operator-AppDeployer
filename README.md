@@ -46,8 +46,8 @@ spec:
       targetPort: 80 # 容器端口
       nodePort: 30002 #service端口  注意：如果使用ClusterIP nodePort端口字段必须删除，否则会报错。
   # 支持configmap 挂载给pod，并实现自动热更新
-  configmap: true
-
+  configmap: true # 可以设置为false，即不需要configmap挂载
+# configmap的配置 key-value
 configmap_data:
   data:
     player_initial_lives: "3"
