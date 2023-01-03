@@ -42,6 +42,9 @@ type AppDeployerSpec struct {
 	// +kubebuilder:validation:Enum=NodePort;ClusterIP
 	// +kubebuilder:default:=NodePort
 	ServiceType string `json:"service_type"`
+
+	// +kubebuilder:default:=false
+	Configmap bool `json:"configmap"`
 }
 
 // AppDeployerStatus defines the observed state of AppDeployer
@@ -52,16 +55,21 @@ type AppDeployerStatus struct {
 	appsv1.DeploymentStatus `json:",inline"`
 }
 
+type ConfigmapData struct {
+	Data map[string]string `json:"data,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // AppDeployer is the Schema for the appdeployers API
 type AppDeployer struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   			`json:",inline"`
+	metav1.ObjectMeta 			`json:"metadata,omitempty"`
 
-	Spec   AppDeployerSpec   `json:"spec,omitempty"`
-	Status AppDeployerStatus `json:"status,omitempty"`
+	Spec   AppDeployerSpec   	`json:"spec,omitempty"`
+	Status AppDeployerStatus 	`json:"status,omitempty"`
+	ConfigmapData ConfigmapData `json:"configmap_data"`
 }
 
 //+kubebuilder:object:root=true

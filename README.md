@@ -8,6 +8,7 @@
 2. 支持多容器以sidecar方式部署(环境变量、command等都支持)
 3. 支持自定义是否使用Service功能
 4. 支持自定义支持Service种类(NodePort or ClusterIP)
+5. 支持configmap挂载给pod，并实现热更新(即：不需要重新手动删除pod。)
 ```bigquery
 apiVersion: deploy.jiang.operator/v1
 kind: AppDeployer
@@ -15,7 +16,7 @@ metadata:
   name: appdeployer-sample
 spec:
   # TODO(user): Add fields here
-  size: 2 # pod副本
+  size: 1 # pod副本
   containers:
     - name: c1
       image: busybox:1.34
@@ -26,16 +27,10 @@ spec:
         limits:
           memory: "128Mi"
           cpu: "500m"
+      volumeMounts:
+        - name: appdeployer-sample # 限定与AppDeployer自己的名字相同，不然会报错。
+          mountPath: /etc/config # 可自由修改
     - name: c2
-      image: busybox:1.34
-      command:
-        - "sleep"
-        - "3600"
-      resources:
-        limits:
-          memory: "128Mi"
-          cpu: "500m"
-    - name: c3
       image: busybox:1.34
       command:
         - "sleep"
@@ -50,6 +45,15 @@ spec:
     - port: 80
       targetPort: 80 # 容器端口
       nodePort: 30002 #service端口  注意：如果使用ClusterIP nodePort端口字段必须删除，否则会报错。
+  # 支持configmap 挂载给pod，并实现自动热更新
+  configmap: true
+
+configmap_data:
+  data:
+    player_initial_lives: "3"
+    ui_properties_file_name: "user-interface.properties"
+
+
 ```
 思路：
 

@@ -44,6 +44,7 @@ type AppDeployerReconciler struct {
 
 var (
 	oldSpecAnnotation = "old/Spec"
+	configmapResourceVersion = ""
 )
 
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
@@ -79,6 +80,42 @@ func (r *AppDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	var configmap corev1.ConfigMap
+	configmap.Name = appDeploy.Name
+	configmap.Namespace = appDeploy.Namespace
+	if appDeploy.Spec.Configmap {
+
+		mutateConfigmapRes, err := ctrl.CreateOrUpdate(ctx, r.Client, &configmap, func() error {
+			// 调谐在这里实现
+			MutateConfigmap(&appDeploy, &configmap)
+			// 设置OwnerReference
+			err := controllerutil.SetOwnerReference(&appDeploy, &configmap, r.Scheme)
+			return err
+		})
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		logs.Info("CreateOrUpdate", "Configmap", mutateConfigmapRes)
+	} else {
+		// 关闭Configmap配置后，需要把原来的删除
+		err := r.Get(ctx, req.NamespacedName, &configmap)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				logs.Info("not found Configmap resource")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+		err = r.Delete(ctx, &configmap)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				logs.Info("not found Configmap resource")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	// 拿到appDeploy时，创建对应的deployment service (当前状态和期望状态对比)
 	// 如果存在，直接更新，如果不存在，则创建
 	// 使用 CreateOrUpdate
@@ -89,8 +126,22 @@ func (r *AppDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	deployment.Name = appDeploy.Name
 	deployment.Namespace = appDeploy.Namespace
 	mutateDeploymentRes, err := ctrl.CreateOrUpdate(ctx, r.Client, &deployment, func() error {
+		var needToChangeConfigmap bool
+		if appDeploy.Spec.Configmap {
+			var needConfigmap corev1.ConfigMap
+			err := r.Get(ctx, req.NamespacedName, &needConfigmap)
+			if err != nil {
+				return err
+			}
+			fmt.Println("取到configmap:", needConfigmap.Name, needConfigmap.ResourceVersion)
+
+			if needConfigmap.ResourceVersion != configmapResourceVersion {
+				configmapResourceVersion = needConfigmap.ResourceVersion
+				needToChangeConfigmap = true
+			}
+		}
 		// 调谐在这里实现
-		MutateDeployment(&appDeploy, &deployment)
+		MutateDeployment(&appDeploy, &deployment, configmapResourceVersion, needToChangeConfigmap)
 		// 设置OwnerReference
 		err := controllerutil.SetOwnerReference(&appDeploy, &deployment, r.Scheme)
 		return err
@@ -155,6 +206,7 @@ func (r *AppDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&deployv1.AppDeployer{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ConfigMap{}).
 		Watches(&source.Kind{ // 加入监听。
 			Type: &appsv1.Deployment{},
 		}, handler.Funcs{
@@ -165,6 +217,11 @@ func (r *AppDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}, handler.Funcs{
 			DeleteFunc: r.serviceDeleteHandler,
 		}).
+		Watches(&source.Kind{ // 加入监听。
+			Type: &corev1.ConfigMap{},
+		}, handler.Funcs{
+			DeleteFunc: r.configmapDeleteHandler,
+		}).
 		Complete(r)
 }
 
@@ -172,7 +229,7 @@ func (r *AppDeployerReconciler) deploymentDeleteHandler(event event.DeleteEvent,
 	for _, ref := range event.Object.GetOwnerReferences() {
 		if ref.Kind == deployv1.Kind && ref.APIVersion == deployv1.ApiVersion {
 			// 重新入列，这样删除pod后，就会进入调和loop，发现owerReference还在，会立即创建出新的pod。
-			fmt.Println("被删除的对象名称是", event.Object.GetName())
+			fmt.Println("被删除的对象名称是", event.Object.GetName(), event.Object.GetObjectKind())
 			limitingInterface.Add(reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: ref.Name,
 					Namespace: event.Object.GetNamespace()}})
@@ -184,7 +241,19 @@ func (r *AppDeployerReconciler) serviceDeleteHandler(event event.DeleteEvent, li
 	for _, ref := range event.Object.GetOwnerReferences() {
 		if ref.Kind == deployv1.Kind && ref.APIVersion == deployv1.ApiVersion {
 			// 重新入列，这样删除pod后，就会进入调和loop，发现owerReference还在，会立即创建出新的pod。
-			fmt.Println("被删除的对象名称是", event.Object.GetName())
+			fmt.Println("被删除的对象名称是", event.Object.GetName(), event.Object.GetObjectKind())
+			limitingInterface.Add(reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: ref.Name,
+					Namespace: event.Object.GetNamespace()}})
+		}
+	}
+}
+
+func (r *AppDeployerReconciler) configmapDeleteHandler(event event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+	for _, ref := range event.Object.GetOwnerReferences() {
+		if ref.Kind == deployv1.Kind && ref.APIVersion == deployv1.ApiVersion {
+			// 重新入列，这样删除pod后，就会进入调和loop，发现owerReference还在，会立即创建出新的pod。
+			fmt.Println("被删除的对象名称是", event.Object.GetName(), event.Object.GetObjectKind())
 			limitingInterface.Add(reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: ref.Name,
 					Namespace: event.Object.GetNamespace()}})

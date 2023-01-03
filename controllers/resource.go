@@ -9,9 +9,15 @@ import (
 	deployv1 "operator-develop/api/v1"
 )
 
-func MutateDeployment(appDeployer *deployv1.AppDeployer, deployment *appsv1.Deployment) {
+func MutateDeployment(appDeployer *deployv1.AppDeployer, deployment *appsv1.Deployment, newConfigmapResourceVersion string, needToChangeConfigmap bool) {
 	labels := map[string]string{
 		"appDeployer": appDeployer.Name,
+	}
+	var annotation map[string]string
+	if appDeployer.Spec.Configmap {
+		annotation = map[string]string{
+			"appDeployer.configmapResourceVersion": newConfigmapResourceVersion,
+		}
 	}
 
 	selector := metav1.LabelSelector{
@@ -24,9 +30,11 @@ func MutateDeployment(appDeployer *deployv1.AppDeployer, deployment *appsv1.Depl
 		Template: corev1.PodTemplateSpec{ // Pod Template
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: labels,
+				Annotations: annotation,
 			},
 			Spec: corev1.PodSpec{
 				Containers: newContainers(appDeployer),
+				Volumes: setVolumes(appDeployer),
 			},
 		},
 	}
@@ -41,6 +49,10 @@ func MutateService(appDeployer *deployv1.AppDeployer, service *corev1.Service) {
 			"appDeployer": appDeployer.Name,
 		},
 	}
+}
+
+func MutateConfigmap(appDeployer *deployv1.AppDeployer, configmap *corev1.ConfigMap) {
+	configmap.Data = appDeployer.ConfigmapData.Data
 }
 
 // NewDeployment 创建deployment
