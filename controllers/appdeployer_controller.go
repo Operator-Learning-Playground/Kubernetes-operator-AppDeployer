@@ -80,6 +80,7 @@ func (r *AppDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// 3. CreateOrUpdate ConfigMap
 	var configmap corev1.ConfigMap
 	configmap.Name = appDeploy.Name
 	configmap.Namespace = appDeploy.Namespace
