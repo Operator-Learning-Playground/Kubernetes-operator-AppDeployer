@@ -15,7 +15,6 @@ kind: AppDeployer
 metadata:
   name: appdeployer-sample
 spec:
-  # TODO(user): Add fields here
   size: 1 # pod副本
   containers:
     - name: c1
@@ -157,3 +156,6 @@ operator-develop-controller-manager-85bb967474-fqn6n   2/2     Running   0      
 │   ├── resource.go # 辅助函数
 └── main.go
 ```
+### RoadMap
+1. 优化configmap配置项方式。
+2. 增加 pv pvc secret 等挂载的功能
